@@ -1,4 +1,4 @@
-# dora-sam2
+# dora-samurai
 
 > [!WARNING]  
 > SAM2 requires Nvidia GPU to be able to run, and as samurai depends on SAM2 it is required

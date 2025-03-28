@@ -28,6 +28,12 @@ dev = ["pytest >=8.1.1", "ruff >=0.9.1"]
 [project.scripts]
 dora-samurai = "dora_samurai.main:main"
 
+[tool.ruff]
+exclude = ["dora_magma/samurai"]
+
+[tool.black]
+extend.exclude = "dora_magma/samurai"
+
 [tool.ruff.lint]
 extend-select = [
   "D",    # pydocstyle
