@@ -9,10 +9,28 @@ import torch
 from dora import Node
 from PIL import Image
 
+
+model_name = "base_plus"  # Options: base_plus, t, s, l
+
 # Add SAMURAI paths
 current_dir = os.path.dirname(os.path.abspath(__file__))
-samurai_path = os.path.join(current_dir, "..", "external", "samurai")
-sam2_path = os.path.join(samurai_path, "sam2")
+parent_dir = os.path.dirname(os.path.dirname(current_dir))  # Go up two levels
+samurai_path = os.path.join(parent_dir, "samurai")  # Path to the samurai repo
+sam2_path = os.path.join(samurai_path, "sam2")  # Path to the sam2 module
+
+# Check if paths exist and provide helpful error messages
+if not os.path.exists(samurai_path):
+    raise RuntimeError(f"SAMURAI repository not found at {samurai_path}. Please clone it there first.")
+
+# Configure correct paths for config and checkpoints
+config_path = os.path.join(samurai_path, "configs", "samurai", f"sam2.1_hiera_b+.yaml")
+checkpoint_path = os.path.join(samurai_path, "sam2", "checkpoints", f"sam2.1_hiera_{model_name}.pt")
+
+
+# Print paths for debugging
+print(f"Using SAMURAI from: {samurai_path}")
+print(f"Config path: {config_path}")
+print(f"Checkpoint path: {checkpoint_path}")
 
 # Add to Python path
 if samurai_path not in sys.path:
@@ -21,7 +39,13 @@ if sam2_path not in sys.path:
     sys.path.insert(0, sam2_path)
 
 # Import SAMURAI components
-from sam2.build_sam import build_sam2_video_predictor
+try:
+    from sam2.build_sam import build_sam2_video_predictor
+except ImportError as e:
+    print(f"Error importing SAMURAI components: {e}")
+    print("Make sure the SAMURAI repository is correctly cloned and structured.")
+    print(f"Python path includes: {sys.path}")
+    raise
 
 
 def main():
@@ -37,11 +61,10 @@ def main():
     predictor = None
     return_type = pa.Array
     
-    # Initialize SAMURAI predictor
-    model_name = "base_plus"  # Options: base_plus, t, s, l
+    # Check for CUDA
+    if not torch.cuda.is_available():
+        print("WARNING: CUDA not available. SAMURAI requires NVIDIA GPU to run properly.")
     
-    config_path = os.path.join(samurai_path, f"configs/samurai/sam2.1_hiera_b+.yaml")
-    checkpoint_path = os.path.join(current_dir, "..", "checkpoints", f"sam2.1_hiera_base_plus.pt")
     
     for event in node:
         event_type = event["type"]
