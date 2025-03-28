@@ -1,0 +1,53 @@
+dataflow:
+  # Use an existing video file
+  - id: video_source
+    custom:
+      source: opencv-video-capture
+      inputs:
+        tick: dora/timer/millis/500  # Slow rate for easier visualization
+      config:
+        CAPTURE_PATH: "/path/to/your/video.mp4"  # TODO Replace with actual video path
+        IMAGE_WIDTH: 640
+        IMAGE_HEIGHT: 480
+      outputs:
+        - image
+  
+  # Generate a fixed bounding box for testing
+  - id: fixed_boxes
+    custom:
+      source: fixed-box-generator
+      inputs:
+        image: video_source/image
+      config:
+        boxes: [[100, 100, 200, 200]]  # x1, y1, x2, y2
+      outputs:
+        - boxes2d
+  
+  # SAMURAI node
+  - id: samurai
+    custom:
+      source: dora-samurai
+      inputs:
+        image: video_source/image
+        boxes2d: fixed_boxes/boxes2d
+      outputs:
+        - masks
+  
+  # Visualize the results
+  - id: visualizer
+    custom:
+      source: opencv-viz
+      inputs:
+        image: video_source/image
+        masks: samurai/masks
+      outputs:
+        - visualization
+  
+  # Display the output
+  - id: display
+    custom:
+      source: opencv-window
+      inputs:
+        image: visualizer/visualization
+      config:
+        WINDOW_NAME: "SAMURAI Tracking"
