@@ -13,9 +13,10 @@ dependencies = [
   "opencv-python>=4.5.0",
   "pillow>=9.0.0",
   "pyarrow>=10.0.0",
-  "torch>=2.0.0",  # CUDA support is required
+  "torch>=2.0.0", # CUDA support is required
   "torchvision>=0.15.0",
-  "setuptools>=58.0.4",  # Explicitly include setuptools for build
+  "setuptools>=58.0.4", # Explicitly include setuptools for build
+  "sam2>=1.1.0",
 ]
 
 [build-system]

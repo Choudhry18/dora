@@ -7,3 +7,6 @@
 [submodule "node-hub/dora-samurai/samurai"]
 	path = node-hub/dora-samurai/samurai
 	url = https://github.com/yangchris11/samurai.git
+[submodule "node-hub/dora-samurai/dora_samurai/samurai"]
+	path = node-hub/dora-samurai/dora_samurai/samurai
+	url = https://github.com/yangchris11/samurai.git

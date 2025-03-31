@@ -7,11 +7,11 @@ from dora import Node
 def main():
     """Run a Dora node that generates fixed bounding boxes."""
     pa.array([])  # initialize pyarrow array
-    node = Node()
+    node = Node("fixed_boxes")
     
     # Get config
     config = node.config if hasattr(node, 'config') else {}
-    boxes = config.get('boxes', [[100, 100, 200, 200]])
+    boxes = config.get('boxes', [[300, 100, 50, 200]])
     boxes_array = np.array(boxes, dtype=np.float32)
     
     for event in node:
