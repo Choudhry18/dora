@@ -78,7 +78,7 @@ decoded_bbox = {
 
 ## Example
 
-Check example at [examples/python-dataflow](examples/python-dataflow)
+Check examples at [examples/python-dataflow](../../examples/python-dataflow/dataflow.yml) and [examples/object-detection](../../examples/object-detection/yolo.yml)
 
 ## License
 
