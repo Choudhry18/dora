@@ -1,16 +1,16 @@
 nodes:
   # Use an existing video file
   - id: video_source
-    custom:
-      source: opencv-video-capture
-      inputs:
-        tick: dora/timer/millis/500  # Slow rate for easier visualization
-      config:
-        CAPTURE_PATH:  "./test_video.mp4"
-        IMAGE_WIDTH: 640
-        IMAGE_HEIGHT: 480
-      outputs:
-        - image
+    build: pip install -e ../../node-hub/opencv-video-capture
+    path: opencv-video-capture
+    inputs:
+      tick: dora/timer/millis/500  # Slow rate for easier visualization
+    env:
+      CAPTURE_PATH:  "./test_video.mp4"
+      IMAGE_WIDTH: 640
+      IMAGE_HEIGHT: 480
+    outputs:
+      - image
   
   # Generate a fixed bounding box for testing
   - id: fixed_boxes
@@ -22,20 +22,17 @@ nodes:
   
   # SAMURAI node
   - id: samurai
-    custom:
-      source: dora-samurai
-      inputs:
-        image: video_source/image
-        boxes2d: fixed_boxes/boxes2d
-      outputs:
-        - masks
+    build: pip install -e ../../node-hub/dora-samurai
+    path: dora-samurai
+    inputs:
+      frames: video_source/image
+      boxes: fixed_boxes/boxes2d
+    outputs:
+      - tracks
   
-  # Visualize the results (single node for visualization and display)
-  - id: display
-    custom:
-      source: opencv-plot
-      inputs:
-        image: video_source/image
-        masks: samurai/masks
-      config:
-        WINDOW_NAME: "SAMURAI Tracking"
+  - id: plot
+    build: pip install -e ../../node-hub/opencv-plot
+    path: opencv-plot
+    inputs:
+      image: video_source/image
+      tracks: samurai/tracks
