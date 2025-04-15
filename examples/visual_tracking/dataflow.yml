@@ -30,6 +30,7 @@ nodes:
     outputs:
       - tracks
   
+  # Plot results
   - id: plot
     build: pip install -e ../../node-hub/opencv-plot
     path: opencv-plot
