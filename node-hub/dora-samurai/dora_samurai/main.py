@@ -10,7 +10,7 @@ import pyarrow as pa
 import torch
 from dora import Node
 from PIL import Image
-from samurai.sam2.build_sam import build_sam2_video_predictor_hf
+from samurai.build_sam import build_sam2_video_predictor_hf
 
 
 class SAMURAITracker:
@@ -90,9 +90,8 @@ def run():
     """Run the SAMURAI tracker node."""
     node = Node()
     
-    # Get configuration from environment variables with defaults
-    device = node.get_env("DEVICE", "cuda:0" if torch.cuda.is_available() else "cpu")
-    model_name = node.get_env("MODEL_NAME", "facebook/sam2.1-hiera-base-plus")
+    device = "cuda:0"
+    model_name = "facebook/sam2.1-hiera-base-plus"
     
     # Initialize tracker
     tracker = SAMURAITracker(model_name=model_name, device=device)
