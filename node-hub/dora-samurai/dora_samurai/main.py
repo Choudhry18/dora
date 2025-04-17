@@ -28,6 +28,11 @@ class SAMURAITracker:
         """Initialize the model."""
         self.predictor = build_sam2_video_predictor_hf(self.model_name, device=self.device)
         self.is_initialized = True
+        dummy_image = np.zeros((480, 640, 3), dtype=np.uint8)
+        pil_dummy = Image.fromarray(dummy_image)
+        with torch.inference_mode(), torch.autocast(self.device.split(":")[0], dtype=torch.float16):
+            self.inference_state = self.predictor.init_streaming_state(pil_dummy)
+        self.is_initialized = True
 
     def process_frame(self, frame):
         """Process a frame and track objects."""
@@ -106,30 +111,44 @@ def run():
             event_id = event["id"]
             
             if "frames" in event_id:
-                # Process image frame
                 storage = event["value"]
                 metadata = event["metadata"]
                 encoding = metadata["encoding"]
                 width = metadata["width"]
                 height = metadata["height"]
-                frame_id = metadata.get("frame_id", "current")
-                
-                # Convert various image formats to numpy array
-                if encoding == "bgr8":
-                    frame = storage.to_numpy().reshape((height, width, 3))
-                    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                elif encoding == "rgb8":
-                    frame = storage.to_numpy().reshape((height, width, 3))
+
+                if (
+                    encoding == "bgr8"
+                    or encoding == "rgb8"
+                    or encoding in ["jpeg", "jpg", "jpe", "bmp", "webp", "png"]
+                ):
+                    channels = 3
+                    storage_type = np.uint8
                 else:
                     error = f"Unsupported image encoding: {encoding}"
                     raise RuntimeError(error)
-                
-                # Store frame for later use with boxes
-                frames[frame_id] = {
-                    "data": frame,
-                    "width": width,
-                    "height": height
-                }
+
+                if encoding == "bgr8":
+                    frame = (
+                        storage.to_numpy()
+                        .astype(storage_type)
+                        .reshape((height, width, channels))
+                    )
+                    frame = frame[:, :, ::-1]  # OpenCV image (BGR to RGB)
+                elif encoding == "rgb8":
+                    frame = (
+                        storage.to_numpy()
+                        .astype(storage_type)
+                        .reshape((height, width, channels))
+                    )
+                elif encoding in ["jpeg", "jpg", "jpe", "bmp", "webp", "png"]:
+                    storage = storage.to_numpy()
+                    frame = cv2.imdecode(storage, cv2.IMREAD_COLOR)
+                    frame = frame[:, :, ::-1]  # OpenCV image (BGR to RGB)
+                else:
+                    raise RuntimeError(f"Unsupported image encoding: {encoding}")
+                image = Image.fromarray(frame)
+                # frames[event_id] = image
                 
                 # If we're in tracking mode, process the frame
                 if tracker.inference_state is not None:
@@ -148,7 +167,7 @@ def run():
                             "bbox",
                             pa.array(bboxes),
                             metadata={
-                                "frame_id": frame_id,
+                                "frame_id": frame_idx,
                                 "width": width,
                                 "height": height
                             }
@@ -159,7 +178,7 @@ def run():
                             "masks",
                             pa.array(masks),
                             metadata={
-                                "frame_id": frame_id,
+                                "frame_id": frame_idx,
                                 "width": width,
                                 "height": height
                             }
@@ -167,7 +186,7 @@ def run():
 
                         node.send_output(
                             "image",
-                            pa.array(frames[frame_id]["data"]),
+                            pa.array(image),
                             metadata={
                                 "frame_id": frame_id,
                                 "width": width,
@@ -185,47 +204,47 @@ def run():
                 metadata = event["metadata"]
                 frame_id = metadata.get("frame_id", "current")
                 
-                if frame_id in frames:
-                    frame_data = frames[frame_id]["data"]
-                    width = frames[frame_id]["width"]
-                    height = frames[frame_id]["height"]
+                # if frame_id in frames:
+                #     frame = frames[frame_id]
+                #     width = frames[frame_id]["width"]
+                #     height = frames[frame_id]["height"]
                     
-                    # Initialize tracking for each box
-                    for box in boxes:
-                        obj_id = tracker.add_object(frame_data, box)
+                # Initialize tracking for each box
+                for box in boxes:
+                    obj_id = tracker.add_object(frame, box)
                     
-                    # Process the frame to get initial tracking results
-                    frame_idx, results = tracker.process_frame(frame_data)
+                    # # Process the frame to get initial tracking results
+                    # frame_idx, results = tracker.process_frame(frame_data)
                     
-                    if results:
-                        # Prepare bounding boxes and masks for output
-                        bboxes = []
-                        masks = []
-                        for result in results:
-                            bboxes.append(result["box"])
-                            masks.append(result["mask"])
+                    # if results:
+                    #     # Prepare bounding boxes and masks for output
+                    #     bboxes = []
+                    #     masks = []
+                    #     for result in results:
+                    #         bboxes.append(result["box"])
+                    #         masks.append(result["mask"])
                         
-                        # Send bounding boxes
-                        node.send_output(
-                            "bbox",
-                            pa.array(bboxes),
-                            metadata={
-                                "frame_id": frame_id,
-                                "width": width, 
-                                "height": height
-                            }
-                        )
+                    #     # Send bounding boxes
+                    #     node.send_output(
+                    #         "bbox",
+                    #         pa.array(bboxes),
+                    #         metadata={
+                    #             "frame_id": frame_id,
+                    #             "width": width, 
+                    #             "height": height
+                    #         }
+                    #     )
                         
-                        # Send masks
-                        node.send_output(
-                            "masks",
-                            pa.array(masks),
-                            metadata={
-                                "frame_id": frame_id,
-                                "width": width,
-                                "height": height
-                            }
-                        )
+                    #     # Send masks
+                    #     node.send_output(
+                    #         "masks",
+                    #         pa.array(masks),
+                    #         metadata={
+                    #             "frame_id": frame_id,
+                    #             "width": width,
+                    #             "height": height
+                    #         }
+                    #     )
                 else:
                     print(f"Warning: Received boxes for unknown frame_id: {frame_id}")
         
