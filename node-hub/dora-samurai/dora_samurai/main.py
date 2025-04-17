@@ -136,10 +136,28 @@ def run():
                     frame_idx, results = tracker.process_frame(frame)
                     
                     if results:
-                        # Send tracking results
+                        # Prepare bounding boxes and masks for output
+                        bboxes = []
+                        masks = []
+                        for result in results:
+                            bboxes.append(result["box"])
+                            masks.append(result["mask"])
+                        
+                        # Send bounding boxes
                         node.send_output(
-                            "tracks",
-                            pa.array(results),
+                            "bbox",
+                            pa.array(bboxes),
+                            metadata={
+                                "frame_id": frame_id,
+                                "width": width,
+                                "height": height
+                            }
+                        )
+                        
+                        # Send masks
+                        node.send_output(
+                            "masks",
+                            pa.array(masks),
                             metadata={
                                 "frame_id": frame_id,
                                 "width": width,
@@ -170,13 +188,31 @@ def run():
                     frame_idx, results = tracker.process_frame(frame_data)
                     
                     if results:
-                        # Send tracking results
+                        # Prepare bounding boxes and masks for output
+                        bboxes = []
+                        masks = []
+                        for result in results:
+                            bboxes.append(result["box"])
+                            masks.append(result["mask"])
+                        
+                        # Send bounding boxes
                         node.send_output(
-                            "tracks",
-                            pa.array(results),
+                            "bbox",
+                            pa.array(bboxes),
                             metadata={
                                 "frame_id": frame_id,
                                 "width": width, 
+                                "height": height
+                            }
+                        )
+                        
+                        # Send masks
+                        node.send_output(
+                            "masks",
+                            pa.array(masks),
+                            metadata={
+                                "frame_id": frame_id,
+                                "width": width,
                                 "height": height
                             }
                         )

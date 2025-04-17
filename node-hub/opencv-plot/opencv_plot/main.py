@@ -22,6 +22,7 @@ class Plot:
         "labels": np.array([]),
     }
 
+    masks: dict = {}
     text: str = ""
 
     width: np.uint32 = None
@@ -30,6 +31,11 @@ class Plot:
 
 def plot_frame(plot):
     """TODO: Add docstring."""
+    if plot.masks:
+        for obj_id, mask in plot.masks.items():
+            mask_img = np.zeros_like(plot.frame, dtype=np.uint8)
+            mask_img[mask] = (0, 255, 0)  # Green mask
+            plot.frame = cv2.addWeighted(plot.frame, 1, mask_img, 0.4, 0)
     for bbox in zip(plot.bboxes["bbox"], plot.bboxes["conf"], plot.bboxes["labels"]):
         [
             [min_x, min_y, max_x, max_y],
@@ -219,6 +225,20 @@ def main():
                 }
             elif event_id == "text":
                 plot.text = event["value"][0].as_py()
+
+            elif event_id == "mask":  # New event type for masks
+                arrow_mask = event["value"]
+                height = plot.frame.shape[0]
+                width = plot.frame.shape[1]
+
+                # Convert mask data to binary masks
+                mask_to_vis = {}
+                for obj_id, mask in enumerate(arrow_mask):
+                    mask_binary = mask.to_numpy().reshape((height, width)) > 0
+                    mask_to_vis[obj_id] = mask_binary
+
+                plot.masks = mask_to_vis  # Store masks in the Plot object
+                
         elif event_type == "ERROR":
             raise RuntimeError(event["error"])
 
