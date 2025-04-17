@@ -164,6 +164,16 @@ def run():
                                 "height": height
                             }
                         )
+
+                        node.send_output(
+                            "image",
+                            pa.array(frames[frame_id]["data"]),
+                            metadata={
+                                "frame_id": frame_id,
+                                "width": width,
+                                "height": height
+                            }
+                        )
             
             elif "boxes" in event_id:
                 # Initialize tracking with bounding boxes
