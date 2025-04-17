@@ -29,9 +29,8 @@ class SAMURAITracker:
         self.predictor = build_sam2_video_predictor_hf(self.model_name, device=self.device)
         self.is_initialized = True
         dummy_image = np.zeros((480, 640, 3), dtype=np.uint8)
-        pil_dummy = Image.fromarray(dummy_image)
         with torch.inference_mode(), torch.autocast(self.device.split(":")[0], dtype=torch.float16):
-            self.inference_state = self.predictor.init_streaming_state(pil_dummy)
+            self.inference_state = self.predictor.init_streaming_state(dummy_image)
         self.is_initialized = True
 
     def process_frame(self, frame):
