@@ -235,8 +235,15 @@ def main():
                 # Convert mask data to binary masks
                 mask_to_vis = {}
                 for obj_id, (mask, shape) in enumerate(zip(arrow_mask, mask_shapes)):
-                    # Reshape the flattened mask back to its original dimensions
-                    mask_binary = mask.to_numpy().reshape(shape) > 0
+                    # PyArrow ListScalar objects need to be handled differently
+                    if hasattr(mask, 'as_py'):
+                        # Convert PyArrow scalar to Python object first
+                        mask_data = mask.as_py()
+                        mask_binary = np.array(mask_data, dtype=bool).reshape(shape)
+                    else:
+                        # Original approach as fallback
+                        mask_binary = mask.to_numpy().reshape(shape) > 0
+                        
                     mask_to_vis[obj_id] = mask_binary
                     
                 plot.masks = mask_to_vis

@@ -42,10 +42,10 @@ class SAMURAITracker:
             
         with torch.inference_mode(), torch.autocast(self.device.split(":")[0], dtype=torch.float16):
             if self.inference_state is None:
-                self.inference_state = self.predictor.init_streaming_state(pil_image)
+                self.inference_state = self.predictor.init_streaming_state(frame)
                 return None, None, None
             
-            frame_idx, object_ids, masks = self.predictor.propagate_streaming(self.inference_state, pil_image)
+            frame_idx, object_ids, masks = self.predictor.propagate_streaming(self.inference_state, frame)
             
             # Convert to format expected by downstream nodes
             results = []
@@ -79,14 +79,13 @@ class SAMURAITracker:
         if not self.is_initialized:
             self.initialize()
             
-        pil_image = Image.fromarray(frame)
             
         with torch.inference_mode(), torch.autocast(self.device.split(":")[0], dtype=torch.float16):
             if self.inference_state is None:
-                self.inference_state = self.predictor.init_streaming_state(pil_image)
+                self.inference_state = self.predictor.init_streaming_state(frame)
             
             obj_id = len(self.tracking_objects)
-            self.predictor.add_new_points_or_box(self.inference_state, box=box, frame_idx=0, obj_id=obj_id)
+            self.predictor.add_new_points_or_box(self.inference_state, box=box, frame_idx=0, obj_id=0)
             return obj_id
 
 
@@ -191,23 +190,23 @@ def run():
                         )
                         
 
-                # Convert back to BGR for visualization if needed
-                vis_frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
-                # Flatten the frame for PyArrow
-                flat_frame = vis_frame.ravel()
+                        # Convert back to BGR for visualization if needed
+                        vis_frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+                        # Flatten the frame for PyArrow
+                        flat_frame = vis_frame.ravel()
 
-                # Send the image
-                node.send_output(
-                    "image",
-                    pa.array(flat_frame),
-                    metadata={
-                        "frame_id": frame_idx,
-                        "width": width,
-                        "height": height,
-                        "channels": 3,
-                        "encoding": "bgr8"
-                    }
-                )
+                        # Send the image
+                        node.send_output(
+                            "image",
+                            pa.array(flat_frame),
+                            metadata={
+                                "frame_id": frame_idx,
+                                "width": width,
+                                "height": height,
+                                "channels": 3,
+                                "encoding": "bgr8"
+                            }
+                        )
             
             elif "boxes" in event_id:
                 # Initialize tracking with bounding boxes
