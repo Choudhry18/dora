@@ -171,27 +171,43 @@ def run():
                                 "height": height
                             }
                         )
-                        
-                        # Send masks
+
+                        flattened_masks = []
+                        mask_shapes = []
+                        for mask in masks:
+                            mask_shapes.append(mask.shape)  # Save original shape
+                            flattened_masks.append(mask.ravel())  # Flatten each mask
+
+                        # Send masks with shape metadata
                         node.send_output(
                             "masks",
-                            pa.array(masks),
+                            pa.array(flattened_masks),  # Send array of flattened masks
                             metadata={
                                 "frame_id": frame_idx,
                                 "width": width,
-                                "height": height
+                                "height": height,
+                                "mask_shapes": mask_shapes  # Include shape information
                             }
                         )
+                        
 
-                        node.send_output(
-                            "image",
-                            pa.array(image),
-                            metadata={
-                                "frame_id": frame_id,
-                                "width": width,
-                                "height": height
-                            }
-                        )
+                # Convert back to BGR for visualization if needed
+                vis_frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+                # Flatten the frame for PyArrow
+                flat_frame = vis_frame.ravel()
+
+                # Send the image
+                node.send_output(
+                    "image",
+                    pa.array(flat_frame),
+                    metadata={
+                        "frame_id": frame_idx,
+                        "width": width,
+                        "height": height,
+                        "channels": 3,
+                        "encoding": "bgr8"
+                    }
+                )
             
             elif "boxes" in event_id:
                 # Initialize tracking with bounding boxes

@@ -223,21 +223,29 @@ def main():
                         zero_copy_only=False,
                     ),
                 }
-            elif event_id == "text":
-                plot.text = event["value"][0].as_py()
 
-            elif event_id == "mask":  # New event type for masks
+                
+            elif event_id == "mask":
                 arrow_mask = event["value"]
-                height = plot.frame.shape[0]
-                width = plot.frame.shape[1]
-
+                metadata = event["metadata"]
+                height = metadata["height"]
+                width = metadata["width"]
+                mask_shapes = metadata.get("mask_shapes", [(height, width)] * len(arrow_mask))
+                
                 # Convert mask data to binary masks
                 mask_to_vis = {}
-                for obj_id, mask in enumerate(arrow_mask):
-                    mask_binary = mask.to_numpy().reshape((height, width)) > 0
+                for obj_id, (mask, shape) in enumerate(zip(arrow_mask, mask_shapes)):
+                    # Reshape the flattened mask back to its original dimensions
+                    mask_binary = mask.to_numpy().reshape(shape) > 0
                     mask_to_vis[obj_id] = mask_binary
-
-                plot.masks = mask_to_vis  # Store masks in the Plot object
+                    
+                plot.masks = mask_to_vis
+                
+                # Update display when mask arrives
+                plot_frame(plot)
+                if not RUNNER_CI:
+                    if cv2.waitKey(1) & 0xFF == ord("q"):
+                        break
                 
         elif event_type == "ERROR":
             raise RuntimeError(event["error"])
