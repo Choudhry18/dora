@@ -4,3 +4,9 @@
 [submodule "node-hub/dora-magma/dora_magma/Magma"]
 	path = node-hub/dora-magma/dora_magma/Magma
 	url = https://github.com/microsoft/Magma
+[submodule "node-hub/dora-samurai/samurai"]
+	path = node-hub/dora-samurai/samurai
+	url = https://github.com/yangchris11/samurai.git
+[submodule "node-hub/dora-samurai/dora_samurai/samurai"]
+	path = node-hub/dora-samurai/dora_samurai/samurai
+	url = https://github.com/yangchris11/samurai.git

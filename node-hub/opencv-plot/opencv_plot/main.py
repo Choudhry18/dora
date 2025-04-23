@@ -3,6 +3,8 @@
 import argparse
 import io
 import os
+from pathlib import Path
+
 
 import cv2
 import numpy as np
@@ -15,7 +17,10 @@ from PIL import (
 if True:
     import pillow_avif  # noqa  # noqa
 
+
 RUNNER_CI = True if os.getenv("CI") == "true" else False
+OUTPUT_DIR = os.getenv("OUTPUT_DIR", "output_frames")
+Path(OUTPUT_DIR).mkdir(exist_ok=True)
 
 
 class Plot:
@@ -29,6 +34,7 @@ class Plot:
         "labels": np.array([]),
     }
 
+    masks: dict = {}
     text: str = ""
 
     width: np.uint32 = None
@@ -37,6 +43,32 @@ class Plot:
 
 def plot_frame(plot):
     """TODO: Add docstring."""
+    # Create a copy of the frame for overlays
+    output_frame = plot.frame.copy()
+
+    # Process masks
+    if plot.masks:
+        try:
+            for obj_id, mask in plot.masks.items():
+                # Verify mask shape matches frame
+                if mask.shape[:2] != plot.frame.shape[:2]:
+                    print(f"Warning: Mask shape {mask.shape} doesn't match frame shape {plot.frame.shape[:2]}")
+                    continue
+                
+                # Create mask overlay
+                mask_img = np.zeros_like(output_frame, dtype=np.uint8)
+                try:
+                    mask_img[mask] = (0, 255, 0)  # Green mask
+                    output_frame = cv2.addWeighted(output_frame, 1, mask_img, 0.4, 0)
+                except IndexError as e:
+                    print(f"Error applying mask {obj_id}: {e}")
+                    continue
+                
+        except Exception as e:
+            print(f"Error processing masks: {e}")
+    
+    # Update the frame with the overlays
+    plot.frame = output_frame
     for bbox in zip(plot.bboxes["bbox"], plot.bboxes["conf"], plot.bboxes["labels"]):
         [
             [min_x, min_y, max_x, max_y],
@@ -78,7 +110,10 @@ def plot_frame(plot):
 
     if not RUNNER_CI:
         if len(plot.frame.shape) >= 3:
-            cv2.imshow("Dora Node: opencv-plot", plot.frame)
+            # Generate a timestamp-based filename
+            timestamp = time.strftime("%Y%m%d-%H%M%S")
+            output_path = os.path.join(OUTPUT_DIR, f"frame_{timestamp}.jpg")
+            cv2.imwrite(output_path, plot.frame)
 
 
 def yuv420p_to_bgr_opencv(yuv_array, width, height):
@@ -209,7 +244,8 @@ def main():
                 bbox_format = event["metadata"]["format"]
 
                 if bbox_format == "xyxy":
-                    bbox = arrow_bbox["bbox"].values.to_numpy().reshape(-1, 4)
+                    print(arrow_bbox)
+                    bbox = arrow_bbox.values.to_numpy().reshape(-1, 4)
                 elif bbox_format == "xywh":
                     original_bbox = arrow_bbox["bbox"].values.to_numpy().reshape(-1, 4)
                     bbox = np.array(
@@ -228,13 +264,40 @@ def main():
 
                 plot.bboxes = {
                     "bbox": bbox,
-                    "conf": arrow_bbox["conf"].values.to_numpy(),
-                    "labels": arrow_bbox["labels"].values.to_numpy(
-                        zero_copy_only=False,
-                    ),
+                    "conf": np.array([]),
+                    "labels": np.array([]),
                 }
-            elif event_id == "text":
-                plot.text = event["value"][0].as_py()
+
+                
+            elif event_id == "mask":
+                arrow_mask = event["value"]
+                metadata = event["metadata"]
+                height = metadata["height"]
+                width = metadata["width"]
+                mask_shapes = metadata.get("mask_shapes", [(height, width)] * len(arrow_mask))
+                
+                # Convert mask data to binary masks
+                mask_to_vis = {}
+                for obj_id, (mask, shape) in enumerate(zip(arrow_mask, mask_shapes)):
+                    # PyArrow ListScalar objects need to be handled differently
+                    if hasattr(mask, 'as_py'):
+                        # Convert PyArrow scalar to Python object first
+                        mask_data = mask.as_py()
+                        mask_binary = np.array(mask_data, dtype=bool).reshape((height, width))
+                    else:
+                        # Original approach as fallback
+                        mask_binary = mask.to_numpy().reshape(shape) > 0
+                        
+                    mask_to_vis[obj_id] = mask_binary
+                    
+                plot.masks = mask_to_vis
+                
+                # Update display when mask arrives
+                plot_frame(plot)
+                if not RUNNER_CI:
+                    if cv2.waitKey(1) & 0xFF == ord("q"):
+                        break
+                
         elif event_type == "ERROR":
             raise RuntimeError(event["error"])
 
