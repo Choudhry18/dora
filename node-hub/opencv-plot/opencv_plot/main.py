@@ -2,13 +2,18 @@
 
 import argparse
 import os
+from pathlib import Path
+
 
 import cv2
 import numpy as np
 import pyarrow as pa
 from dora import Node
+import time
 
 RUNNER_CI = True if os.getenv("CI") == "true" else False
+OUTPUT_DIR = os.getenv("OUTPUT_DIR", "output_frames")
+Path(OUTPUT_DIR).mkdir(exist_ok=True)
 
 
 class Plot:
@@ -98,7 +103,10 @@ def plot_frame(plot):
 
     if not RUNNER_CI:
         if len(plot.frame.shape) >= 3:
-            cv2.imshow("Dora Node: opencv-plot", plot.frame)
+            # Generate a timestamp-based filename
+            timestamp = time.strftime("%Y%m%d-%H%M%S")
+            output_path = os.path.join(OUTPUT_DIR, f"frame_{timestamp}.jpg")
+            cv2.imwrite(output_path, plot.frame)
 
 
 def yuv420p_to_bgr_opencv(yuv_array, width, height):
@@ -220,7 +228,8 @@ def main():
                 bbox_format = event["metadata"]["format"]
 
                 if bbox_format == "xyxy":
-                    bbox = arrow_bbox["bbox"].values.to_numpy().reshape(-1, 4)
+                    print(arrow_bbox)
+                    bbox = arrow_bbox.values.to_numpy().reshape(-1, 4)
                 elif bbox_format == "xywh":
                     original_bbox = arrow_bbox["bbox"].values.to_numpy().reshape(-1, 4)
                     bbox = np.array(
@@ -239,10 +248,8 @@ def main():
 
                 plot.bboxes = {
                     "bbox": bbox,
-                    "conf": arrow_bbox["conf"].values.to_numpy(),
-                    "labels": arrow_bbox["labels"].values.to_numpy(
-                        zero_copy_only=False,
-                    ),
+                    "conf": np.array([]),
+                    "labels": np.array([]),
                 }
 
                 
@@ -260,7 +267,7 @@ def main():
                     if hasattr(mask, 'as_py'):
                         # Convert PyArrow scalar to Python object first
                         mask_data = mask.as_py()
-                        mask_binary = np.array(mask_data, dtype=bool).reshape((640, 480))
+                        mask_binary = np.array(mask_data, dtype=bool).reshape((height, width))
                     else:
                         # Original approach as fallback
                         mask_binary = mask.to_numpy().reshape(shape) > 0
