@@ -1,6 +1,7 @@
 """TODO: Add docstring."""
 
 import argparse
+import io
 import os
 from pathlib import Path
 
@@ -9,7 +10,13 @@ import cv2
 import numpy as np
 import pyarrow as pa
 from dora import Node
-import time
+from PIL import (
+    Image,
+)
+
+if True:
+    import pillow_avif  # noqa  # noqa
+
 
 RUNNER_CI = True if os.getenv("CI") == "true" else False
 OUTPUT_DIR = os.getenv("OUTPUT_DIR", "output_frames")
@@ -111,6 +118,7 @@ def plot_frame(plot):
 
 def yuv420p_to_bgr_opencv(yuv_array, width, height):
     """TODO: Add docstring."""
+    yuv_array = yuv_array[: width * height * 3 // 2]
     yuv = yuv_array.reshape((height * 3 // 2, width))
     return cv2.cvtColor(yuv, cv2.COLOR_YUV420p2RGB)
 
@@ -180,7 +188,6 @@ def main():
                 encoding = metadata["encoding"]
                 width = metadata["width"]
                 height = metadata["height"]
-
                 if encoding == "bgr8":
                     channels = 3
                     storage_type = np.uint8
@@ -216,6 +223,14 @@ def main():
                     img_bgr_restored = yuv420p_to_bgr_opencv(storage, width, height)
 
                     plot.frame = img_bgr_restored
+                elif encoding == "avif":
+                    # Convert AVIF to RGB
+                    array = storage.to_numpy()
+                    bytes = array.tobytes()
+                    img = Image.open(io.BytesIO(bytes))
+                    img = img.convert("RGB")
+                    plot.frame = np.array(img)
+                    plot.frame = cv2.cvtColor(plot.frame, cv2.COLOR_RGB2BGR)
                 else:
                     raise RuntimeError(f"Unsupported image encoding: {encoding}")
 
@@ -223,6 +238,7 @@ def main():
                 if not RUNNER_CI:
                     if cv2.waitKey(1) & 0xFF == ord("q"):
                         break
+
             elif event_id == "bbox":
                 arrow_bbox = event["value"][0]
                 bbox_format = event["metadata"]["format"]
