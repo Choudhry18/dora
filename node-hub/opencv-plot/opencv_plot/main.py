@@ -31,11 +31,32 @@ class Plot:
 
 def plot_frame(plot):
     """TODO: Add docstring."""
+    # Create a copy of the frame for overlays
+    output_frame = plot.frame.copy()
+
+    # Process masks
     if plot.masks:
-        for obj_id, mask in plot.masks.items():
-            mask_img = np.zeros_like(plot.frame, dtype=np.uint8)
-            mask_img[mask] = (0, 255, 0)  # Green mask
-            plot.frame = cv2.addWeighted(plot.frame, 1, mask_img, 0.4, 0)
+        try:
+            for obj_id, mask in plot.masks.items():
+                # Verify mask shape matches frame
+                if mask.shape[:2] != plot.frame.shape[:2]:
+                    print(f"Warning: Mask shape {mask.shape} doesn't match frame shape {plot.frame.shape[:2]}")
+                    continue
+                
+                # Create mask overlay
+                mask_img = np.zeros_like(output_frame, dtype=np.uint8)
+                try:
+                    mask_img[mask] = (0, 255, 0)  # Green mask
+                    output_frame = cv2.addWeighted(output_frame, 1, mask_img, 0.4, 0)
+                except IndexError as e:
+                    print(f"Error applying mask {obj_id}: {e}")
+                    continue
+                
+        except Exception as e:
+            print(f"Error processing masks: {e}")
+    
+    # Update the frame with the overlays
+    plot.frame = output_frame
     for bbox in zip(plot.bboxes["bbox"], plot.bboxes["conf"], plot.bboxes["labels"]):
         [
             [min_x, min_y, max_x, max_y],
@@ -239,7 +260,7 @@ def main():
                     if hasattr(mask, 'as_py'):
                         # Convert PyArrow scalar to Python object first
                         mask_data = mask.as_py()
-                        mask_binary = np.array(mask_data, dtype=bool).reshape(shape)
+                        mask_binary = np.array(mask_data, dtype=bool).reshape((640, 480))
                     else:
                         # Original approach as fallback
                         mask_binary = mask.to_numpy().reshape(shape) > 0

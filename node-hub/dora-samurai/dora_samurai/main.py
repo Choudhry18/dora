@@ -28,7 +28,7 @@ class SAMURAITracker:
         """Initialize the model."""
         self.predictor = build_sam2_video_predictor_hf(self.model_name, device=self.device)
         self.is_initialized = True
-        dummy_image = np.zeros((480, 640, 3), dtype=np.uint8)
+        dummy_image = np.zeros((640, 480, 3), dtype=np.uint8)
         with torch.inference_mode(), torch.autocast(self.device.split(":")[0], dtype=torch.float16):
             self.inference_state = self.predictor.init_streaming_state(dummy_image)
         self.is_initialized = True
@@ -185,9 +185,12 @@ def run():
                                 "frame_id": frame_idx,
                                 "width": width,
                                 "height": height,
-                                "mask_shapes": mask_shapes  # Include shape information
+                                "mask_shapes": [640, 480] # Include shape information
                             }
                         )
+                        
+                        print(flattened_masks)
+                        print(mask_shapes)
                         
 
                         # Convert back to BGR for visualization if needed
